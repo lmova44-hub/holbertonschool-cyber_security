@@ -1,5 +1,3 @@
 #!/bin/bash
-groupadd $1
-chown "$1:$2"
-chmod g+rx $2
-
+useradd -m $1
+echo "$1:$2" | chpasswd
