@@ -1,2 +1,2 @@
 #!/bin/bash
-grep -E '^(Include|PasswordAuthentication)' /etc/ssh/sshd_config | head -n 2
+grep -Ev '^\s*#' /etc/ssh/sshd_config | grep -E 'Include|PasswordAuthentication'
