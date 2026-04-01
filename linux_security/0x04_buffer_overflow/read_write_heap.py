@@ -1,65 +1,60 @@
 #!/usr/bin/python3
 """
-A script that finds and replaces a string in the heap of a running process.
+Write a script that finds a string in the heap of a running process,
+and replaces it.
 """
-
 import sys
 
-def read_write_heap(pid, search_str, replace_str):
-    # 1. /proc/[pid]/maps faylını açırıq ki, heap-in harada olduğunu tapaq
-    try:
-        maps_file = open(f"/proc/{pid}/maps", "r")
-    except IOError as e:
-        print(f"[ERROR] Can't open maps file: {e}")
-        sys.exit(1)
 
-    heap_start = None
-    heap_end = None
-
-    for line in maps_file:
-        if "[heap]" in line:
-            # Sətirdən ünvanları götürürük (məs: 555e646e0000-555e64701000)
-            parts = line.split()
-            addr_range = parts[0].split("-")
-            heap_start = int(addr_range[0], 16)
-            heap_end = int(addr_range[1], 16)
-            break
-    maps_file.close()
-
-    if not heap_start or not heap_end:
-        print("[ERROR] Could not find heap.")
-        sys.exit(1)
-
-    # 2. /proc/[pid]/mem faylını açırıq (ikili oxuma/yazma modunda)
-    try:
-        mem_file = open(f"/proc/{pid}/mem", "rb+")
-    except IOError as e:
-        print(f"[ERROR] Can't open mem file: {e}")
-        sys.exit(1)
-
-    # 3. Heap sahəsini oxuyuruq
-    mem_file.seek(heap_start)
-    heap_data = mem_file.read(heap_end - heap_start)
-
-    # 4. Axtarılan mətni tapırıq
-    try:
-        index = heap_data.index(bytes(search_str, "ascii"))
-    except ValueError:
-        print(f"[ERROR] String '{search_str}' not found in heap.")
-        mem_file.close()
-        sys.exit(1)
-
-    # 5. Mətni əvəz edirik
-    print(f"[*] Found '{search_str}' at {hex(heap_start + index)}")
-    mem_file.seek(heap_start + index)
-    mem_file.write(bytes(replace_str + '\0', "ascii")) # Sonuna null byte əlavə edirik
-    print(f"[*] Replaced with '{replace_str}'")
-
-    mem_file.close()
-
-if __name__ == "__main__":
+def read_write_heap():
+    """
+    Finds and replaces a string in the heap of a running process.
+    """
     if len(sys.argv) != 4:
         print("Usage: read_write_heap.py pid search_string replace_string")
         sys.exit(1)
-    
-    read_write_heap(sys.argv[1], sys.argv[2], sys.argv[3])
+
+    pid = sys.argv[1]
+    search_string = sys.argv[2]
+    replace_string = sys.argv[3]
+
+    try:
+        # 1. Maps faylını oxuyuruq
+        with open(f"/proc/{pid}/maps", "r") as maps_file:
+            heap_info = None
+            for line in maps_file:
+                if "[heap]" in line:
+                    heap_info = line
+                    break
+
+            if not heap_info:
+                print(f"[ERROR] Heap not found for PID {pid}")
+                sys.exit(1)
+
+            parts = heap_info.split()
+            addr_range = parts[0].split("-")
+            start_addr = int(addr_range[0], 16)
+            end_addr = int(addr_range[1], 16)
+
+        # 2. Mem faylını açırıq və dəyişdiririk
+        with open(f"/proc/{pid}/mem", "rb+") as mem_file:
+            mem_file.seek(start_addr)
+            heap = mem_file.read(end_addr - start_addr)
+
+            try:
+                offset = heap.index(bytes(search_string, "ascii"))
+            except ValueError:
+                print(f"[ERROR] String '{search_string}' not found")
+                sys.exit(1)
+
+            # Yazma prosesi
+            mem_file.seek(start_addr + offset)
+            mem_file.write(bytes(replace_string + '\0', "ascii"))
+
+    except Exception as e:
+        print(f"[ERROR] {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    read_write_heap()
