@@ -38,8 +38,10 @@ elsif options[:list]
   if File.exist?(TASKS_FILE)
     tasks = File.readlines(TASKS_FILE, chomp: true)
 
-    tasks.each_with_index do |task, index|
-      puts "#{index + 1}. #{task}"
+    puts "Tasks:"
+
+    tasks.each do |task|
+      puts "    #{task}"
     end
   end
 
