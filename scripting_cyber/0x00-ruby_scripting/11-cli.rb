@@ -43,6 +43,8 @@ elsif options[:list]
     tasks.each do |task|
       puts "    #{task}"
     end
+  else
+    puts "Tasks:"
   end
 
 elsif options[:remove]
