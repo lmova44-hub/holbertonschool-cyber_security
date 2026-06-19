@@ -1,4 +1,0 @@
-# VPN Credentials
-Username: vpn_admin
-Password: VPN@dmin2024!
-Server: vpn.pentestlab.local
