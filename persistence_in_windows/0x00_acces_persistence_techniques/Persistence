@@ -1,0 +1,126 @@
+
+# 1. Introduction
+
+Background Intelligent Transfer Service (BITS) is a Windows component responsible for transferring files in the background while using available network bandwidth efficiently. Microsoft relies on this service for Windows Update, Microsoft Defender updates, and other system-related downloads.
+
+Because BITS is a trusted Windows service, attackers may abuse it to establish persistence. A malicious BITS job can continue after user logoff or system reboot, making it an attractive persistence technique. Since BITS traffic often resembles legitimate Windows activity, unauthorized jobs may remain unnoticed if they are not actively monitored.
+
+---
+
+# 2. Understanding BITS and Its Capabilities
+
+BITS is designed to perform reliable background file transfers. Unlike normal download utilities, it automatically pauses and resumes transfers depending on network availability and system state.
+
+Some important characteristics include:
+
+* Transfers files using idle network bandwidth.
+* Automatically resumes interrupted downloads.
+* Jobs remain stored even after a reboot.
+* Supports execution of a command after a transfer completes.
+* Can be managed through **BITSAdmin** or PowerShell cmdlets.
+
+These features make BITS useful for administrators but also attractive to attackers who want persistence without creating obvious scheduled tasks or startup entries.
+
+---
+
+# 3. Creating a BITS Job
+
+Before creating a new job, existing BITS transfers should be reviewed.
+
+### PowerShell
+
+```powershell
+Get-BitsTransfer -AllUsers
+```
+
+or
+
+```cmd
+bitsadmin /list /allusers /verbose
+```
+
+When investigating jobs, pay attention to:
+
+* Display Name
+* Owner
+* Remote URL
+* Local Destination
+* Current State
+* Notification Command
+
+Jobs downloading files from unknown domains or saving executables into temporary directories should be considered suspicious.
+
+---
+
+# 4. Implementing Persistence
+
+BITS supports notification commands that can be executed automatically after a transfer has finished successfully.
+
+To improve persistence, a PowerShell monitoring script can periodically verify whether the expected BITS job still exists. If the job has been removed, the script can recreate it automatically.
+
+This monitoring script can itself be executed using **Windows Task Scheduler**, allowing continuous verification after logon or system startup.
+
+Typical workflow:
+
+1. Check whether the required BITS job exists.
+2. If missing, create a replacement job.
+3. Continue monitoring at regular intervals.
+4. Log any failures or recreation attempts.
+
+This approach demonstrates how persistence can survive accidental deletion or system restarts.
+
+---
+
+# 5. Detection and Prevention
+
+Windows provides several methods for identifying suspicious BITS activity.
+
+### Event Viewer
+
+Relevant logs are located under:
+
+```
+Applications and Services Logs
+→ Microsoft
+→ Windows
+→ Bits-Client
+→ Operational
+```
+
+Useful Event IDs include:
+
+| Event ID | Description                   |
+| -------- | ----------------------------- |
+| 3        | BITS job created              |
+| 4        | Existing job modified         |
+| 59       | Notification command executed |
+
+Security analysts should also inspect process creation logs for:
+
+* bitsadmin.exe
+* powershell.exe
+* cmd.exe
+
+Sysmon Event ID 1 and Windows Security Event ID 4688 provide valuable evidence of command execution.
+
+To remove unwanted jobs:
+
+```powershell
+Get-BitsTransfer -AllUsers | Remove-BitsTransfer
+```
+
+or
+
+```cmd
+bitsadmin /cancel <JobName>
+```
+
+Organizations can further reduce risk by limiting administrative privileges, monitoring outbound traffic, enabling PowerShell logging, and alerting whenever BITS notification commands are configured.
+
+---
+
+# 6. Conclusion
+
+BITS is a legitimate Windows service intended to perform reliable background file transfers. However, its ability to survive reboots and execute commands after downloads makes it a potential persistence mechanism if abused.
+
+Regular inspection of BITS jobs, continuous event log monitoring, and endpoint detection solutions are effective ways to identify unauthorized activity. Combining these defensive practices with least-privilege access significantly reduces the likelihood of successful persistence through BITS.
